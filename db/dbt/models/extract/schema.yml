@@ -1,0 +1,20 @@
+
+version: 2
+
+models:
+  - name: wiki_plots_clean
+    description: ""
+
+  - name: wiki_plots_final
+    description: ""
+    columns:
+      - name: imdb_title_id
+        description: "The primary key for this table"
+        tests:
+          - unique
+          - not_null
+
+  - name: imdb_plots_final
+    description: ""
+
+  - name: movie_plots

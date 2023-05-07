@@ -1,0 +1,7 @@
+cinemattr: # this needs to match the profile in your dbt_project.yml file
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: '/Users/kchauhan/Repos/cinemattr/db/duckdb/db.duckdb'
+

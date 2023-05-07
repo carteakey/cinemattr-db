@@ -1,0 +1,11 @@
+env
+logs
+__pycache__
+airflow-webserver.pid
+standalone_admin_password.txt
+*.csv
+db.duckdb
+db.duckdb.wal
+airflow.db
+.env.dev
+.DS_Store
