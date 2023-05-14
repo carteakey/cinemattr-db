@@ -9,3 +9,4 @@ db.duckdb.wal
 airflow.db
 .env.dev
 .DS_Store
+data
