@@ -5,10 +5,16 @@ from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain.chains.query_constructor.base import AttributeInfo
 import pinecone
 import os
-from sanic import Sanic
-from sanic.response import json
+from flask import Flask
+from flask import jsonify
+from dotenv import load_dotenv
+from flask_cors import CORS, cross_origin
 
-app = Sanic('cinemattr-db')
+app = Flask(__name__)
+CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
+load_dotenv('/Users/kchauhan/repos/cinemattr-db/.env.dev')
 
 embeddings = OpenAIEmbeddings()
 
@@ -93,7 +99,7 @@ def getResults(inputQuery):
 
         return titles
 
-@app.route('/',name='root')
-@app.route('/query/<query>',name="index")
-async def index(request, query=""):
-    return json({'titles': getResults(query)})
+@app.route('/')
+@app.route('/<query>')
+def index(query=""):
+    return jsonify({'titles': getResults(query)})

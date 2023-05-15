@@ -10,3 +10,4 @@ airflow.db
 .env.dev
 .DS_Store
 data
+.vercel
