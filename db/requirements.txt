@@ -1,0 +1,3 @@
+duckdb
+apache-airflow
+dbt-core

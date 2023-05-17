@@ -1,8 +1,8 @@
 langchain 
 pinecone-client 
 openai
-Flask
 python-dotenv
 lark
 gunicorn
-flask-cors
+fastapi
+sentence-transformers

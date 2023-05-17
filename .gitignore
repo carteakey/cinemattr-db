@@ -11,3 +11,4 @@ airflow.db
 .DS_Store
 data
 .vercel
+lambda.txt
