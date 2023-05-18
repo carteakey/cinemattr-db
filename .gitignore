@@ -12,3 +12,6 @@ airflow.db
 data
 .vercel
 lambda.txt
+db/duckdb/db.duckdb_old
+db/duckdb/tmp/load.sql
+.gitignore

@@ -7,10 +7,11 @@ import pinecone
 import os
 import json
 import sys
+import urllib.parse
 
 model_name="sentence-transformers/all-mpnet-base-v2"
 model_kwargs = {}
-embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
+embeddings = HuggingFaceEmbeddings(model_name=model_name,cache_folder='/tmp',model_kwargs=model_kwargs)
 
 metadata_field_info = [
     AttributeInfo(
@@ -44,7 +45,7 @@ metadata_field_info = [
         type="string or list[string]",
     ),
     AttributeInfo(
-        name="director",
+        name="directors",
         description="The name of the movie directors",
         type="string or list[string]",
     ),
@@ -60,7 +61,7 @@ metadata_field_info = [
     ),
     AttributeInfo(
         name="ratingCount",
-        description="How many people rated the movie on IMDB. Indicator of movie's popularity",
+        description="How many people rated the movie on IMDB",
         type="integer",
     ),
 ]
@@ -74,29 +75,28 @@ def getResults(inputQuery):
     vectorstore = Pinecone.from_existing_index(
         os.environ["PINECONE_INDEX_NAME"], embeddings
     )
-    llm = OpenAI(temperature=0.2)
+    llm = OpenAI(temperature=0)
     retriever = SelfQueryRetriever.from_llm(
         llm,
         vectorstore,
         document_content_description,
         metadata_field_info,
+        # enable_limit=True,
         verbose=True,
     )
-    retriever.search_kwargs = {"k": 10}
+    # retriever.search_kwargs = {"k": 10}
     results = retriever.get_relevant_documents(inputQuery)
-
-    titles = []
-    for result in results:
-        print(result)
-        print(result.metadata["source"])
-        titles.append(result.metadata["source"])
-
+    titles = [result.metadata["source"]  for result in results]
     return titles
 
 def lambda_handler(event, context):
     # Parse the incoming event data
     print('queryStringParameters:', json.dumps(event['queryStringParameters']))
-    query = event['queryStringParameters']['query']  
+    query = event['queryStringParameters']['query']
+    query =  urllib.parse.unquote(query)
+    #lowercase
+    query = query.lower()
+    
     print('event:', json.dumps(event))
 
     response = {}
