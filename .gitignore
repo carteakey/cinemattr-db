@@ -4,8 +4,7 @@ __pycache__
 airflow-webserver.pid
 standalone_admin_password.txt
 *.csv
-db.duckdb
-db.duckdb.wal
+db.duckdb*
 airflow.db
 .env.dev
 .DS_Store
@@ -15,3 +14,4 @@ lambda.txt
 db/duckdb/db.duckdb_old
 db/duckdb/tmp/load.sql
 .gitignore
+deployments
