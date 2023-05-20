@@ -39,7 +39,7 @@ metadata_field_info=[
     # ),
     AttributeInfo(
         name="year",
-        description="The year the movie was released", 
+        description="The year the movie was released. Only integers allowed", 
         type="integer", 
     ),
     AttributeInfo(
