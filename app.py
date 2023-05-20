@@ -32,11 +32,11 @@ metadata_field_info=[
         description="The genres of the movie (in lowercase)", 
         type="string or list[string]", 
     ),
-    AttributeInfo(
-        name="certificate",
-        description="The certificate of the movie", 
-        type="string", 
-    ),
+    # AttributeInfo(
+    #     name="certificate",
+    #     description="The certificate of the movie", 
+    #     type="string", 
+    # ),
     AttributeInfo(
         name="year",
         description="The year the movie was released", 
