@@ -19,7 +19,7 @@ embeddings = HuggingFaceEmbeddings(model_name=model_name,cache_folder='/tmp',mod
 metadata_field_info=[
     AttributeInfo(
         name="title",
-        description="The title of the movie (in lowercase)", 
+        description="The title of the movie (in lowercase). Case sensitive", 
         type="string", 
     ),
     # AttributeInfo(
@@ -29,7 +29,7 @@ metadata_field_info=[
     # ),
     AttributeInfo(
         name="genre",
-        description="The genres of the movie (in lowercase)", 
+        description="The genres of the movie (in lowercase). Case sensitive", 
         type="string or list[string]", 
     ),
     # AttributeInfo(
@@ -44,12 +44,12 @@ metadata_field_info=[
     ),
     AttributeInfo(
         name="stars",
-        description="The name of the movie actors (in lowercase)", 
+        description="The name of the movie actors (in lowercase). Case sensitive", 
         type="string or list[string]", 
     ),
     AttributeInfo(
         name="directors",
-        description="The name of the movie directors (in lowercase)", 
+        description="The name of the movie directors (in lowercase). Case sensitive", 
         type="string or list[string]", 
     ),
     AttributeInfo(
