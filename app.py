@@ -106,13 +106,14 @@ def lambda_handler(event, context):
     #lowercase
     query = query.lower()
 
-    #remove full stop
-    if query[-1]=='.':
-        query=query[:-1]
-
     #remove special characters
     import re
     query = re.sub(r'[^0-9A-Za-z .-]', '', query)
+
+        #remove full stop
+    if query[-1]=='.':
+        query=query[:-1]
+
 
     print('event:', json.dumps(event))
     print('Final query:',query)
