@@ -6,6 +6,8 @@ from airflow.models.baseoperator import chain
 """
 This DAG is used to trigger the WikiPlots DAG.
 """
+
+
 @dag(
     dag_id="wiki_plots_trigger",
     schedule_interval=None,
@@ -14,20 +16,28 @@ This DAG is used to trigger the WikiPlots DAG.
     tags=["scraper"],
 )
 def trigger_dag():
-
-    years = range(1950, 2024)
-
+    # years = range(1950, 2024)
+    years = [
+        1991,
+        2017,
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+    ]
     op_list = [
-        TriggerDagRunOperator(task_id=f"wiki_plots_trigger_{year}", 
-            trigger_dag_id="wiki_plots_extract_load", 
+        TriggerDagRunOperator(
+            task_id=f"wiki_plots_trigger_{year}",
+            trigger_dag_id="wiki_plots_extract_load",
             conf={"year": year},
             wait_for_completion=True,
-            trigger_rule='all_done'
+            trigger_rule="all_done",
         )
-        for year in years]
+        for year in years
+    ]
 
     chain(*op_list)
 
-dag = trigger_dag()
 
-            
+dag = trigger_dag()

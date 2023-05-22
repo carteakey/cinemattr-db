@@ -110,7 +110,7 @@ def lambda_handler(event, context):
     import re
     query = re.sub(r'[^0-9A-Za-z .-]', '', query)
 
-        #remove full stop
+    #remove full stop
     if query[-1]=='.':
         query=query[:-1]
 

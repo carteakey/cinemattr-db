@@ -6,7 +6,7 @@ from duckdb_provider.hooks.duckdb_hook import DuckDBHook
 This DAG is used to extract and load the plot section from the Wikipedia page of each movie"
 """
 @dag(
-    dag_id="wiki_extract_load",
+    dag_id="wiki_plots_extract_load",
     schedule_interval=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
@@ -57,7 +57,14 @@ def taskflow():
         cursor.close()
         conn.close()
 
-    @task
+    @task.virtualenv(
+        system_site_packages=True,
+        requirements=[
+            "pandas",
+            "mwclient",
+            "mwparserfromhell"
+        ]
+    )
     def extract(year):
         from scrapers.wiki_plots import scrape
         data_file = scrape(year)

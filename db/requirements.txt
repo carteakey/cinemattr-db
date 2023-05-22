@@ -1,3 +1,7 @@
-duckdb==0.8.0
+duckdb==0.7.1
 apache-airflow
 dbt-core
+dbt-duckdb
+harlequin
+jupysql
+pandas
