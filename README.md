@@ -31,3 +31,25 @@ Test query
 ```bash
 curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"query": "owen wilson wow"}'
 ```
+
+## Setting up data pipeline
+
+Initialize environment
+```
+cd db
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Init Duckdb database
+```
+cd duckdb
+python -m migrate init
+```
+
+Init Airflow image
+```
+cd airflow
+docker compose up -d
+```
