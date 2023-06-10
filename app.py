@@ -94,6 +94,7 @@ def getResults(inputQuery):
         retriever.search_kwargs = {"k": 20}
         results = retriever.get_relevant_documents(inputQuery)
         titles = [result.metadata["source"]  for result in results]
+        print(titles)
         print(cb)
         return titles
 

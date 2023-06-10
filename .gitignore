@@ -16,3 +16,4 @@ db/duckdb/tmp/load.sql
 .gitignore
 deployments
 .venv
+*.parquet

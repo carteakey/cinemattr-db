@@ -23,6 +23,11 @@ Build
 ```bash
 docker build -t cinemattr-api . --no-cache  --platform=linux/amd64
 ```
+
+```bash
+docker build -t cinemattr-api .  --platform=linux/arm64
+```
+
 Run
 ```bash
 docker run -p 9000:8080  --env-file .env.dev cinemattr-api
@@ -31,6 +36,33 @@ Test query
 ```bash
 curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"query": "owen wilson wow"}'
 ```
+
+Auth ECR
+```bash
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $LAMBDA_ECR_REPO
+```
+
+Create Docker Repository
+```bash
+aws ecr create-repository --repository-name cinemattr-api --image-scanning-configuration scanOnPush=true --image-tag-mutability MUTABLE  --region us-east-1 
+```
+
+Tag latest build
+```bash
+docker tag cinemattr-api $LAMBDA_ECR_REPO/cinemattr-api:latest
+```
+
+Push
+```bash
+docker push $LAMBDA_ECR_REPO/cinemattr-api:latest
+```
+
+Test Lambda Function URL
+```
+curl "$LAMBDA_API_URL?query=query"
+```
+
+
 
 ## Setting up data pipeline
 
