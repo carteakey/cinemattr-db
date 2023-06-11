@@ -62,6 +62,11 @@ Test Lambda Function URL
 curl "$LAMBDA_API_URL?query=query"
 ```
 
+## Airflow
+
+```bash
+docker exec -it airflow-airflow-webserver-1 sh
+```
 
 
 ## Setting up data pipeline
