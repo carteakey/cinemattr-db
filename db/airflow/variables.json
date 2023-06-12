@@ -1,0 +1,10 @@
+{
+    "DBT_PROFILES_DIR": "/opt/airflow/dbt/.dbt",
+    "DBT_PROJECT_DIR": "/opt/airflow/dbt",
+    "PATH_TO_PYTHON_BINARY": "/opt/airflow/env/.venv/bin/python3.11",
+    "HUGGINGFACEHUB_API_TOKEN": "XXXXXXXXXX",
+    "OPENAI_API_KEY": "XXXXXXXXXX",
+    "PINECONE_API_KEY": "XXXXXXXXXX",
+    "PINECONE_ENV": "XXXXXXXXXX",
+    "SCRAPINGANT_API_KEY": "XXXXXXXXXX"
+}

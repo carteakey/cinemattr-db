@@ -13,18 +13,12 @@ This DAG is used to trigger the WikiPlots DAG.
     schedule_interval=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=["scraper"],
+    tags=["scraper",'cinemattr'],
 )
 def trigger_dag():
     # years = range(1950, 2024)
     years = [
-        1991,
-        2017,
-        2019,
-        2020,
-        2021,
-        2022,
-        2023,
+        2017
     ]
     op_list = [
         TriggerDagRunOperator(
