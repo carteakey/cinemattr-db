@@ -11,16 +11,24 @@ import pinecone
 import os
 import json
 import sys
-
-# model_name="sentence-transformers/all-mpnet-base-v2"
-# model_kwargs = {}
-# embeddings = HuggingFaceEmbeddings(model_name=model_name,cache_folder='/tmp',model_kwargs=model_kwargs)
+import shutil
 
 
+if os.path.exists("/tmp/sentence-transformers_all-mpnet-base-v2"):
+    print("Using cached model")
+else:
+    shutil.copytree(
+        os.environ["LAMBDA_TASK_ROOT"]+"/sentence-transformers_all-mpnet-base-v2",
+        "/tmp/sentence-transformers_all-mpnet-base-v2",
+    )
+    print("Copied model from lambda root")
+
+model_name = "sentence-transformers/all-mpnet-base-v2"
+cache_folder = "/tmp"
 model_path = "/tmp/sentence-transformers_all-mpnet-base-v2"
 model_kwargs = {}
 embeddings = HuggingFaceEmbeddings(model_name=model_path, model_kwargs=model_kwargs)
-
+# embeddings = HuggingFaceEmbeddings(model_name=model_name,cache_folder='/tmp',model_kwargs=model_kwargs)
 
 metadata_field_info = [
     AttributeInfo(

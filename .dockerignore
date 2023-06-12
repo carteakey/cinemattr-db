@@ -4,3 +4,4 @@
 */.venv
 .venv
 .git 
+fly.toml
