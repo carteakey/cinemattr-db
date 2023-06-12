@@ -1,1 +1,6 @@
-*.parquet
+*/*/*.parquet
+*/*/db.duckdb*
+*/*/.venv
+*/.venv
+.venv
+.git 

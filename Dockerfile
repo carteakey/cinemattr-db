@@ -10,7 +10,7 @@ RUN git lfs install
 RUN git clone https://huggingface.co/sentence-transformers/all-mpnet-base-v2 /tmp/model
 RUN rm -rf /tmp/model/.git
 
-FROM public.ecr.aws/lambda/python:3.9
+FROM public.ecr.aws/lambda/python:3.10
 # Install the function's dependencies using file requirements.txt
 # from your project folder.
 COPY requirements.txt  .
