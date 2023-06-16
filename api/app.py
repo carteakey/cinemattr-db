@@ -1,5 +1,5 @@
 from langchain.vectorstores import Pinecone
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain.chains.query_constructor.base import AttributeInfo
@@ -14,21 +14,33 @@ import sys
 import shutil
 
 
-if os.path.exists("/tmp/sentence-transformers_all-mpnet-base-v2"):
-    print("Using cached model")
-else:
-    shutil.copytree(
-        os.environ["LAMBDA_TASK_ROOT"]+"/sentence-transformers_all-mpnet-base-v2",
-        "/tmp/sentence-transformers_all-mpnet-base-v2",
-    )
-    print("Copied model from lambda root")
+# Option for OpenAI or HuggingFace
+def getEmbeddings(model):
+    if model == "hf":
+        if os.path.exists("/tmp/sentence-transformers_all-mpnet-base-v2"):
+            print("Using cached model")
+        else:
+            shutil.copytree(
+                os.environ["LAMBDA_TASK_ROOT"]
+                + "/sentence-transformers_all-mpnet-base-v2",
+                "/tmp/sentence-transformers_all-mpnet-base-v2",
+            )
+            print("Copied model from lambda root")
 
-model_name = "sentence-transformers/all-mpnet-base-v2"
-cache_folder = "/tmp"
-model_path = "/tmp/sentence-transformers_all-mpnet-base-v2"
-model_kwargs = {}
-embeddings = HuggingFaceEmbeddings(model_name=model_path, model_kwargs=model_kwargs)
-# embeddings = HuggingFaceEmbeddings(model_name=model_name,cache_folder='/tmp',model_kwargs=model_kwargs)
+        # model_name = "sentence-transformers/all-mpnet-base-v2"
+        # cache_folder = "/tmp"
+        # embeddings = HuggingFaceEmbeddings(model_name=model_name,cache_folder='/tmp',model_kwargs=model_kwargs)
+
+        model_path = "/tmp/sentence-transformers_all-mpnet-base-v2"
+        model_kwargs = {}
+        embeddings = HuggingFaceEmbeddings(
+            model_name=model_path, model_kwargs=model_kwargs
+        )
+        return embeddings
+    elif model == "openai":
+        embeddings = OpenAIEmbeddings()
+        return embeddings
+
 
 metadata_field_info = [
     AttributeInfo(
@@ -90,6 +102,9 @@ def getResults(inputQuery):
         api_key=os.environ["PINECONE_API_KEY"],
         environment=os.environ["PINECONE_ENV"],
     )
+
+    embeddings = getEmbeddings("openai")
+
     vectorstore = Pinecone.from_existing_index(
         os.environ["PINECONE_INDEX_NAME"], embeddings
     )

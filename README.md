@@ -86,7 +86,12 @@ pip install -r requirements.txt
 Init Duckdb database
 ```
 cd duckdb
-python -m migrate init
+python -m utils init
+```
+
+Export final movies plot table
+```bash
+python -m utils db.duckdb export_movies
 ```
 
 Init Airflow image
