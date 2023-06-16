@@ -1,3 +1,4 @@
+import os
 import shutil
 import duckdb
 import sys
@@ -78,7 +79,7 @@ else:
                 SELECT * FROM movie_plots_ld m) TO 'movie_plots.csv' (HEADER, DELIMITER ',')
         """
         )
-
+        os.remove("./db.duckdb_ex")
         con = duckdb.connect("./db.duckdb_ex")
         con.sql(
             """CREATE TABLE movie_plots as SELECT * FROM 'movie_plots.csv'

@@ -18,7 +18,7 @@ This DAG is used to trigger the WikiPlots DAG.
 def trigger_dag():
     # years = range(1950, 2024)
     years = [
-        2017
+        2017,2018
     ]
     op_list = [
         TriggerDagRunOperator(
