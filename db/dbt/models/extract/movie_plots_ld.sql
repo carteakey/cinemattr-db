@@ -19,4 +19,4 @@ SELECT
     CAST(m.imdb_rating AS FLOAT) as imdb_rating,
     m.imdb_title_id as source
 FROM
-    {{ref('movie_plots')}}
+    {{ref('movie_plots')}} m

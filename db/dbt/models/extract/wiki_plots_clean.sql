@@ -1,6 +1,6 @@
 {{ config(materialized='table') }}
 
-select title,
+select {{ wiki_regex_title('title') }} as title,
 {{ wiki_regex_imdb_title_id('external_links') }} as imdb_title_id,
 {{ wiki_regex_summary('summary') }} as summary,
 {{ wiki_regex_plot('plot') }} as plot,
