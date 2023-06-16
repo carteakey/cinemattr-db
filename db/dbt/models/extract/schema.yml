@@ -1,4 +1,3 @@
-
 version: 2
 
 models:
@@ -18,3 +17,6 @@ models:
     description: ""
 
   - name: movie_plots
+
+  - name: movie_plots_ld
+    description: "Final table to load into pinecone"
