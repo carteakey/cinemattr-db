@@ -1,6 +1,6 @@
 # cinemattr-db
 
-Backend and database of cinemattr.ca
+Backend and database of [cinemattr.ca](https://github.com/carteakey/cinemattr.ca)
 
 ## How it works
 
