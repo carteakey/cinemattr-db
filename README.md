@@ -4,7 +4,7 @@ Backend and database of [cinemattr.ca](https://github.com/carteakey/cinemattr.ca
 
 ## How it works
 
-- Self querying retriever using LangChain, on a pinecone database containing popular movies released since 1950 to date.
+- Self querying retriever using LangChain, on a pinecone database containing popular movies (>1000 imdb rating count) released since 1950 to date.
 - OpenAI LLM translates user input to a vector database query.
 - Initial filtering is done through metadata columns (title, year, rating, actors etc.) using operators like > < = AND,OR.
 - Semantic search is done on the plot and summaries extracted for each movie.
@@ -18,14 +18,16 @@ Backend and database of [cinemattr.ca](https://github.com/carteakey/cinemattr.ca
 - Data is loaded to a duckdb instance. (`db/duckdb`)
 - DBT is used for data transformation and cleanup (Clean text, create final tables, merge data from both sources) (`db/dbt`)
 - Plot summaries are loaded into a pinecone vector database (see `api/load.ipynb`).
-- Vector Embeddings are either HuggingFace - all-mpnet-base-v2 (Free) or OpenAI ada (Paid ($0.0001/1000 tokens)).
+- Vector Embeddings are either 
+   - HuggingFace `all-mpnet-base-v2`, Free - `api/hf_embeddings`
+   - OpenAI `text-embedding-ada-002`, Paid - $0.0001/1000 tokens - `api`
 
 ## Building and Testing the Lambda API
 
 Build
 
 ```bash
-docker build -t cinemattr-api . --no-cache  --platform=linux/amd64
+docker build -t cinemattr-api . --no-cache  --platform=linux/arm64
 ```
 
 ```bash
@@ -87,7 +89,6 @@ docker exec -it airflow-airflow-webserver-1 sh
 ## Setting up data pipeline
 
 Initialize environment
-
 ```
 cd db
 python -m venv .venv
@@ -96,21 +97,20 @@ pip install -r requirements.txt
 ```
 
 Init Duckdb database
-
 ```
 cd duckdb
 python -m utils init
 ```
 
-Export final movies plot table
-
-```bash
-python -m utils db.duckdb export_movies
-```
-
-Init Airflow image
-
+Init Airflow 
 ```
 cd airflow
 docker compose up -d
 ```
+
+Export final movies plot table
+```bash
+python -m utils db.duckdb export_movies
+```
+
+
