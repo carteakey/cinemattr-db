@@ -15,7 +15,8 @@ timestamp=currentDateAndTime.strftime("%Y%m%d%H%M%S")
 
 # globals
 IMDB_TITLE_URL = "https://www.imdb.com/title/tt"
-IMDB_SRCH_URL = "https://www.imdb.com/search/title/?title_type=feature&languages=en&count=250"
+# IMDB_SRCH_URL = "https://www.imdb.com/search/title/?title_type=feature&languages=en&count=250"
+IMDB_SRCH_URL = "https://www.imdb.com/search/title/?title_type=feature&count=250"
 
 DEFAULT_SCRAPE = f"/opt/airflow/data/imdb/{timestamp}_scrape.csv"
 

@@ -5,4 +5,3 @@ python-dotenv
 lark
 gunicorn
 fastapi
-sentence-transformers
