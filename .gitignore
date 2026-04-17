@@ -8,7 +8,11 @@ airflow.db
 .env.dev
 .DS_Store
 data
+db/duckdb/imdb_cache/
+db/duckdb/*.duckdb
+db/duckdb/*.duckdb-*
 .vercel
+.venv-pipeline
 lambda.txt
 .gitignore
 deployments
