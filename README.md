@@ -1,175 +1,129 @@
 # cinemattr-db
 
-Backend and database of [cinemattr.ca](https://github.com/carteakey/cinemattr.ca)
+Backend and database of [cinemattr.ca](https://github.com/carteakey/cinemattr.ca).
 
 ## How it works
 
-- Self querying retriever using LangChain, on a pinecone database containing popular movies (>1000 imdb rating count) released since 1950 to date.
-- An OpenAI-compatible LLM translates user input to a vector database query.
-- Initial filtering is done through metadata columns (title, year, rating, actors etc.) using operators like > < = AND,OR.
-- Semantic search is done on the plot and summaries extracted for each movie.
-- Final 20 results (titles) are sent back as a response.
-- API hosted as a standalone Python HTTP service (FastAPI).
+- Natural-language plot search over a local movie corpus.
+- One LLM call (OpenAI-compatible — OpenAI, Gemini, local) parses the query into a structured filter (year range, genres, min rating) plus a semantic query.
+- Semantic query is embedded and matched against a **DuckDB VSS** HNSW index.
+- Metadata filters (year / genre / rating) are applied in the same SQL query.
+- Returns the top-k IMDb title IDs.
+- API is a standalone FastAPI service. No LangChain. No Pinecone.
 
-## Search API (no Lambda dependency)
+## Search API
 
-### API routes
+### Routes
 
 - `GET /health`
-- `POST /search` with JSON body: `{ "query": "..." }`
-- `GET /search?query=...` (compat path)
+- `POST /search` with JSON body: `{ "query": "...", "top_k": 20 }`
+- `GET /search?query=...&top_k=20`
 
-Example:
+### Example
 
 ```bash
 curl -X POST "http://localhost:8080/search" \
   -H "Content-Type: application/json" \
-  -d '{"query":"mind bending sci-fi with alternate realities"}'
+  -d '{"query":"mind-bending thriller with dream layers, after 2010"}'
 ```
 
-### Provider and model environment variables
+## Environment variables
 
 ```bash
-# LLM
+# LLM (filter parser)
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=...
 LLM_MODEL=gpt-4.1-mini
 
-# Embeddings
-EMBEDDING_PROVIDER=openai-compatible
+# Embeddings (falls back to LLM_* if unset)
 EMBEDDING_BASE_URL=
 EMBEDDING_API_KEY=
 EMBEDDING_MODEL=text-embedding-3-small
-HF_EMBEDDING_DEVICE=
+EMBEDDING_DIM=1536          # must match the model's output dim
 
-# Pinecone
-PINECONE_API_KEY=...
-PINECONE_ENV=...
-VECTOR_INDEX_NAME=cinemattr
+# Vector store
+DUCKDB_PATH=data/cinemattr.duckdb
+VSS_TABLE=movie_embeddings
 VECTOR_TOP_K=20
 
 # API hardening
 RATE_LIMIT_REQUESTS=30
 RATE_LIMIT_WINDOW_SECONDS=60
 ALLOWED_ORIGINS=*
-
-# Only trust X-Forwarded-For when your API sits behind a trusted proxy/load balancer.
 TRUST_PROXY_HEADERS=false
 TRUSTED_PROXY_IPS=
 ```
 
-`EMBEDDING_PROVIDER=huggingface` enables local `sentence-transformers` embeddings. Hosted providers still require an API key; keyless mode is only intended for local endpoints such as `localhost`.
+### Embedding dim cheat sheet
 
-### Pinecone index migration notes (embedding model upgrades)
+| Model | Default dim | Matryoshka options |
+|---|---|---|
+| `text-embedding-3-small` | 1536 | fixed |
+| `text-embedding-3-large` | 3072 | 256..3072 |
+| `gemini-embedding-001` | 3072 | 768 / 1536 / 3072 |
 
-When changing embedding model dimensions, do not overwrite the active index in place.
+Set `EMBEDDING_DIM` to match. Changing dim requires reloading the VSS table.
 
-1. Create a new index name (for example `cinemattr-v2`) with the target dimension.
-2. Re-embed and load data into that new index.
-3. Switch `VECTOR_INDEX_NAME` to the new index.
-4. Verify search quality/latency via smoke checks.
-5. Keep the previous index for rollback until confidence is high, then delete it.
+## Loading the vector store
 
-## How data is collected and loaded
+Assumes you already have a DuckDB database with scraped movies/plots (see "Data pipeline" below).
 
-- Movie details and plot summaries are scraped from IMDb and Wikipedia. (`db/airflow/dags/scrapers`)
-- Airflow is used to orchestrate scraping jobs for every year. (`db/airflow`)
-- Data is loaded to a duckdb instance. (`db/duckdb`)
-- DBT is used for data transformation and cleanup (Clean text, create final tables, merge data from both sources) (`db/dbt`)
-- Plot summaries are loaded into a pinecone vector database (see `api/load.ipynb`).
-- Vector embeddings can run in either mode:
-  - Hugging Face `sentence-transformers/all-mpnet-base-v2` via `EMBEDDING_PROVIDER=huggingface` and the `api/hugging_face` image
-  - OpenAI-compatible embeddings via `EMBEDDING_PROVIDER=openai-compatible`
+```bash
+python api/load_embeddings.py \
+  --source db/duckdb/movies.duckdb \
+  --table movies \
+  --id-col title_id \
+  --plot-col plot \
+  --title-col title \
+  --year-col year \
+  --genre-col genres \
+  --rating-col imdb_rating \
+  --batch 64
+```
 
-## Building and running the API container
+Idempotent — re-runs upsert by `title_id`.
 
-Build
+## Running the API
 
 ```bash
 docker build -t cinemattr-api ./api --no-cache
+docker run -p 8080:8080 --env-file .env cinemattr-api
 ```
 
-Hugging Face embedding image
+Or locally:
 
 ```bash
-docker build -t cinemattr-api-hf ./api/hugging_face --no-cache
+pip install -r api/requirements.txt
+uvicorn --app-dir api app:app --host 0.0.0.0 --port 8080
 ```
 
-Run
+## Data pipeline
+
+- Movie details + plots scraped from IMDb and Wikipedia (`db/airflow/dags/scrapers`).
+- Airflow orchestrates per-year scraping jobs (`db/airflow`).
+- Raw data loaded into DuckDB (`db/duckdb`).
+- DBT transforms (`db/dbt`).
+- Embeddings loaded into the VSS table via `api/load_embeddings.py`.
+
+### Airflow year range
 
 ```bash
-docker run -p 8080:8080 --env-file .env.example cinemattr-api
-```
-
-Test query
-
-```bash
-curl -X POST "http://localhost:8080/search" \
-  -H "Content-Type: application/json" \
-  -d '{"query":"owen wilson wow"}'
-```
-
-Auth ECR
-
-```bash
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $LAMBDA_ECR_REPO
-```
-
-Create Docker Repository
-
-```bash
-aws ecr create-repository --repository-name cinemattr-api --image-scanning-configuration scanOnPush=true --image-tag-mutability MUTABLE  --region us-east-1
-```
-
-Tag/push steps stay the same if using ECR-based deploys.
-
-## Airflow
-
-```bash
-docker exec -it airflow-airflow-webserver-1 sh
-```
-
-## Setting up data pipeline
-
-Initialize environment
-```
-cd db
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Init Duckdb database
-```
-cd duckdb
-python -m utils init
-```
-
-Init Airflow 
-```
-cd airflow
-docker compose up -d
-```
-
-Export final movies plot table
-```bash
-python -m utils db.duckdb export_movies
+CINEMATTR_START_YEAR=1950
+CINEMATTR_END_YEAR=2026
 ```
 
 ## Free-hosting options (scale-to-zero friendly)
 
-Free tiers change often; verify quotas before deploy:
+Free tiers change; verify quotas before deploy.
 
 1. Cloud Run (container, scale-to-zero)
 2. Koyeb free web service (container, may sleep)
-3. Render/Railway credit-based free tiers (if available)
+3. Render / Railway credit-based free tiers
 
-For less cold-start impact with higher ops overhead, use Oracle Always Free VM.
+Oracle Always Free VM for less cold-start impact with more ops overhead.
 
-## Local smoke checks
-
-After running the API:
+## Local smoke check
 
 ```bash
-./api/smoke_test.sh
+./api/smoke_test.sh http://localhost:8080
 ```

@@ -106,7 +106,18 @@ Completed:
 - Added backend smoke check script (`api/smoke_test.sh`).
 - README section describing free-hosting options (Cloud Run / Koyeb / Render / Oracle).
 
-Still open (docs-only, not yet implemented):
-- **Phase 4 — deploy-free-tier-targets:** no concrete deploy manifests are committed. README currently *describes* the options; there is no `service.yaml`, `koyeb.yaml`, or deploy script. Pick one free tier and ship a working manifest before claiming this done.
-- **Phase 5 — pinecone-index-migration-plan:** index versioning is described in the README but not implemented. `VECTOR_INDEX_NAME` is read from env, but there is no migration helper / rollout+rollback procedure in code.
-- **End-to-end smoke:** backend boot has not been verified against a live Pinecone + LLM provider. Run `api/smoke_test.sh` against a deployed (or locally booted with real keys) instance before cutting v2.0.0.
+## Phase 6 — drop LangChain + migrate to DuckDB VSS (post-Pinecone)
+
+Rationale: the old Pinecone index/credentials are gone, and the LangChain stack (SelfQueryRetriever + vector wrapper + SQLiteCache) was overkill for a single retrieval endpoint. Replacing both with a small, targeted stack keeps the code honest and local-first.
+
+New stack:
+- **LLM filter parser** — one JSON-structured OpenAI-compatible call (`api/filter_parser.py`) replaces `SelfQueryRetriever` + `lark`. Returns `{semantic_query, year_from, year_to, genres, min_rating}`.
+- **Embeddings** — direct `openai` client (`api/embeddings.py`), works with OpenAI / Gemini / local providers.
+- **Vector store** — DuckDB VSS (HNSW, cosine) in a single local `.duckdb` file (`api/vector_store.py`).
+- **Loader** — `api/load_embeddings.py` reads from a source DuckDB table and upserts embeddings into the VSS table. Idempotent.
+- Dependencies dropped: `langchain`, `lark`, `pinecone-client`, `cohere`, `SQLiteCache`.
+
+Still open:
+- Deploy manifests (Cloud Run / Koyeb yaml) are still README-only.
+- End-to-end smoke against a populated VSS table is pending (requires running the loader against the existing DuckDB corpus).
+- Decide: keep `api/hugging_face/` image once we re-introduce a local embedding profile, or leave dropped.
