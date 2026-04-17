@@ -96,11 +96,17 @@ Decision rule:
 - Explicitly avoid silent fallbacks: if provider/model config is invalid, fail with clear error payloads.
 
 ## Progress update
+
 Completed:
 - Migrated backend from Lambda handler style to FastAPI HTTP service (`/health`, `/search`), with structured error payloads.
 - Added provider-agnostic OpenAI-compatible env config for LLM + embeddings, and replaced hardcoded `gpt-3.5-turbo` defaults.
 - Rewired frontend search route to `SEARCH_API_URL` with retry/timeout controls and deterministic error handling.
 - Updated random prompt endpoint to provider-agnostic config and modern default model.
 - Added backend IP-based rate limiting and request hardening controls via env vars.
-- Added backend smoke check script (`api/smoke_test.sh`) and documented usage.
-- Refreshed docs/FAQ text to remove Lambda dependency and document free-hosting options + Pinecone index migration workflow.
+- Added backend smoke check script (`api/smoke_test.sh`).
+- README section describing free-hosting options (Cloud Run / Koyeb / Render / Oracle).
+
+Still open (docs-only, not yet implemented):
+- **Phase 4 — deploy-free-tier-targets:** no concrete deploy manifests are committed. README currently *describes* the options; there is no `service.yaml`, `koyeb.yaml`, or deploy script. Pick one free tier and ship a working manifest before claiming this done.
+- **Phase 5 — pinecone-index-migration-plan:** index versioning is described in the README but not implemented. `VECTOR_INDEX_NAME` is read from env, but there is no migration helper / rollout+rollback procedure in code.
+- **End-to-end smoke:** backend boot has not been verified against a live Pinecone + LLM provider. Run `api/smoke_test.sh` against a deployed (or locally booted with real keys) instance before cutting v2.0.0.
