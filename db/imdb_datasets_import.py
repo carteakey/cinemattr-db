@@ -35,7 +35,7 @@ import duckdb
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("imdb-import")
 
-IMDB_DATASETS_BASE = "https://datasets.imdb.com/dataset"
+IMDB_DATASETS_BASE = "https://datasets.imdbws.com"
 DATASETS = {
     "basics": "title.basics.tsv.gz",
     "ratings": "title.ratings.tsv.gz",
@@ -60,10 +60,10 @@ IMDb dataset download failed. Download these files manually:
 
   mkdir -p {cache_dir}
   cd {cache_dir}
-  curl -O https://datasets.imdb.com/dataset/title.basics.tsv.gz
-  curl -O https://datasets.imdb.com/dataset/title.ratings.tsv.gz
-  curl -O https://datasets.imdb.com/dataset/title.crew.tsv.gz
-  curl -O https://datasets.imdb.com/dataset/name.basics.tsv.gz
+  curl -O https://datasets.imdbws.com/title.basics.tsv.gz
+  curl -O https://datasets.imdbws.com/title.ratings.tsv.gz
+  curl -O https://datasets.imdbws.com/title.crew.tsv.gz
+  curl -O https://datasets.imdbws.com/name.basics.tsv.gz
 
   Then re-run this script.
 """
