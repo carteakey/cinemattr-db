@@ -48,19 +48,47 @@ DEFAULT_CACHE = str(REPO_ROOT / "db/duckdb/imdb_cache")
 DEFAULT_DB = str(REPO_ROOT / "db/duckdb/movies.duckdb")
 
 
+MANUAL_DOWNLOAD_INSTRUCTIONS = """
+IMDb dataset download failed. Download these files manually:
+
+  1. Go to: https://developer.imdb.com/non-commercial-datasets/
+  2. Download these 4 files into {cache_dir}:
+       title.basics.tsv.gz     (~55 MB)
+       title.ratings.tsv.gz    (~4 MB)
+       title.crew.tsv.gz       (~25 MB)
+       name.basics.tsv.gz      (~250 MB)
+
+  mkdir -p {cache_dir}
+  cd {cache_dir}
+  curl -O https://datasets.imdb.com/dataset/title.basics.tsv.gz
+  curl -O https://datasets.imdb.com/dataset/title.ratings.tsv.gz
+  curl -O https://datasets.imdb.com/dataset/title.crew.tsv.gz
+  curl -O https://datasets.imdb.com/dataset/name.basics.tsv.gz
+
+  Then re-run this script.
+"""
+
+
 def download(url: str, dest: Path) -> None:
     log.info("Downloading %s → %s", url, dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(url) as resp, open(dest, "wb") as f:
-        shutil.copyfileobj(resp, f)
-    log.info("Saved %s (%.1f MB)", dest.name, dest.stat().st_size / 1e6)
+    try:
+        with urllib.request.urlopen(url) as resp, open(dest, "wb") as f:
+            shutil.copyfileobj(resp, f)
+        log.info("Saved %s (%.1f MB)", dest.name, dest.stat().st_size / 1e6)
+    except Exception as e:
+        if dest.exists():
+            dest.unlink()
+        raise RuntimeError(
+            f"Download failed: {e}\n{MANUAL_DOWNLOAD_INSTRUCTIONS.format(cache_dir=dest.parent)}"
+        ) from e
 
 
 def ensure_dataset(name: str, cache_dir: Path, force: bool = False) -> Path:
     filename = DATASETS[name]
     dest = cache_dir / filename
     if dest.exists() and not force:
-        log.info("Using cached %s", filename)
+        log.info("Using cached %s (%.1f MB)", filename, dest.stat().st_size / 1e6)
         return dest
     download(f"{IMDB_DATASETS_BASE}/{filename}", dest)
     return dest
