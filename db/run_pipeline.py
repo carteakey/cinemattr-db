@@ -37,6 +37,7 @@ DBT_PROFILES_DIR = DBT_DIR / ".dbt"
 API_DIR = REPO_ROOT / "api"
 DEFAULT_MOVIES_DB = str(DB_DIR / "duckdb/movies.duckdb")
 DEFAULT_VSS_DB = str(REPO_ROOT / "data/cinemattr.duckdb")
+DEFAULT_IMDB_CACHE = str(DB_DIR / "duckdb/imdb_cache")
 
 sys.path.insert(0, str(SCRAPERS_DIR))
 
@@ -101,11 +102,12 @@ def upsert_csv(db_path: str, csv_path: str, table: str, pk: str) -> int:
 # Scraping phases
 # ---------------------------------------------------------------------------
 
-def phase_imdb_movies(db_path: str, years: range, pages: int, data_dir: Path) -> None:
+def phase_imdb_movies_scraper(db_path: str, years: range, pages: int, data_dir: Path) -> None:
+    """Legacy web scraper — broken as of 2024 (IMDb redesigned their site)."""
     from IMDb_movies import scrape  # type: ignore
 
     (data_dir / "imdb").mkdir(parents=True, exist_ok=True)
-    log.info("=== Phase 1: IMDb movies (%d years) ===", len(years))
+    log.info("=== Phase 1: IMDb movies via web scraper (%d years) ===", len(years))
     for year in years:
         csv = str(data_dir / "imdb" / f"imdb_movies_{year}.csv")
         try:
@@ -115,6 +117,16 @@ def phase_imdb_movies(db_path: str, years: range, pages: int, data_dir: Path) ->
             log.info("  %d  imdb_movies → %d total", year, count)
         except Exception as e:
             log.error("  %d  imdb_movies FAILED: %s", year, e)
+
+
+def phase_imdb_movies_datasets(db_path: str, years: range, cache_dir: str, force_download: bool) -> None:
+    """Import from official IMDb TSV datasets — reliable, no scraping."""
+    import sys
+    sys.path.insert(0, str(DB_DIR))
+    from imdb_datasets_import import import_to_duckdb  # type: ignore
+
+    log.info("=== Phase 1: IMDb movies via official datasets (%d–%d) ===", years.start, years.stop - 1)
+    import_to_duckdb(db_path, Path(cache_dir), years.start, years.stop - 1, force_download)
 
 
 def phase_wiki_plots(db_path: str, years: range, data_dir: Path) -> None:
@@ -220,7 +232,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="cinemattr standalone data pipeline")
     parser.add_argument("--start-year", type=int, default=2015)
     parser.add_argument("--end-year", type=int, default=datetime.now().year)
-    parser.add_argument("--pages", type=int, default=10, help="IMDb search pages per year (max 20)")
+    parser.add_argument("--pages", type=int, default=10, help="IMDb search pages per year (max 20, scraper mode only)")
+    parser.add_argument("--imdb-source", choices=["datasets", "scraper"], default="datasets",
+                        help="'datasets' = official IMDb TSV files (recommended); 'scraper' = broken legacy web scraper")
+    parser.add_argument("--imdb-cache", default=DEFAULT_IMDB_CACHE, help="Cache dir for downloaded TSV.GZ files")
+    parser.add_argument("--force-download", action="store_true", help="Re-download IMDb datasets even if cached")
     parser.add_argument("--db-path", default=DEFAULT_MOVIES_DB, help="DuckDB path for raw + dbt data")
     parser.add_argument("--vss-db", default=DEFAULT_VSS_DB, help="DuckDB VSS output path (for API)")
     parser.add_argument("--skip-imdb-movies", action="store_true")
@@ -242,7 +258,10 @@ def main() -> None:
     setup_tables(args.db_path)
 
     if not args.skip_imdb_movies:
-        phase_imdb_movies(args.db_path, years, args.pages, data_dir)
+        if args.imdb_source == "datasets":
+            phase_imdb_movies_datasets(args.db_path, years, args.imdb_cache, args.force_download)
+        else:
+            phase_imdb_movies_scraper(args.db_path, years, args.pages, data_dir)
 
     if not args.skip_wiki:
         phase_wiki_plots(args.db_path, years, data_dir)
