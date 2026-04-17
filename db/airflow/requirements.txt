@@ -6,3 +6,9 @@ openai
 pinecone-client
 dbt-core
 dbt-duckdb
+aiohttp
+beautifulsoup4
+mwclient
+mwparserfromhell
+pandas
+requests

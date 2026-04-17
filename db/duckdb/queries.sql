@@ -72,21 +72,22 @@ WHERE
         SELECT
             imdb_title_id
         FROM
-            imdb_wiki)
+            imdb_plots)
 
 SELECT 
     m.title,
     m.description,
-    COALESCE(str_split(m.stars,','),list_value('NA')) as stars,
-    COALESCE(str_split(m.directors,','),list_value('NA')) as directors,
+    COALESCE(str_split(m.stars, ','), list_value('NA')) as stars,
+    COALESCE(str_split(m.directors, ','), list_value('NA')) as directors,
     m.year,
-    COALESCE(m.certificate,'NA') as certificate,
-    COALESCE(str_split(m.genre,','),list_value('NA')) as genre,
-    COALESCE(m.runtime,'NA') as runtime,
-    COALESCE(m.MetaScore,0) as MetaScore,
-    m.ratingCount,''
+    COALESCE(m.certificate, 'NA') as certificate,
+    COALESCE(str_split(m.genre, ','), list_value('NA')) as genre,
+    COALESCE(m.runtime, 'NA') as runtime,
+    COALESCE(m.MetaScore, 0) as MetaScore,
+    m.ratingCount,
     m.plot,
     m.summary,
-    CAST(m.imdb_rating AS FLOAT) as imdb_rating, 
-    m.imdb_title_id as source FROM imdb_wiki m
+    CAST(m.IMDb_rating AS FLOAT) as imdb_rating,
+    m.imdb_title_id as source
+FROM movie_plots m
 	
