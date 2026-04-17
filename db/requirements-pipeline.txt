@@ -8,8 +8,6 @@ requests
 
 # Storage + transforms
 duckdb
-dbt-core
-dbt-duckdb
 
 # API / VSS loader (also in api/requirements.txt)
 openai

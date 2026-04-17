@@ -181,18 +181,11 @@ def phase_imdb_plots(db_path: str, years: range, data_dir: Path) -> None:
 # Transform phase (dbt)
 # ---------------------------------------------------------------------------
 
-def phase_dbt(db_path: str) -> None:
-    log.info("=== Phase 4: dbt transforms ===")
-    env = os.environ.copy()
-    env["DBT_PROFILES_DIR"] = str(DBT_PROFILES_DIR)
-    env["DUCKDB_PATH"] = db_path
-    result = subprocess.run(
-        [sys.executable, "-m", "dbt", "run", "--project-dir", str(DBT_DIR)],
-        env=env,
-    )
-    if result.returncode != 0:
-        raise RuntimeError("dbt run failed")
-    log.info("dbt transforms complete")
+def phase_transform(db_path: str) -> None:
+    log.info("=== Phase 4: transform → movie_plots_ld ===")
+    sys.path.insert(0, str(DB_DIR))
+    from transform import run as run_transform  # type: ignore
+    run_transform(db_path)
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +235,7 @@ def main() -> None:
     parser.add_argument("--skip-imdb-movies", action="store_true")
     parser.add_argument("--skip-wiki", action="store_true")
     parser.add_argument("--skip-imdb-plots", action="store_true")
-    parser.add_argument("--skip-dbt", action="store_true")
+    parser.add_argument("--skip-transform", action="store_true")
     parser.add_argument("--skip-vss", action="store_true")
     parser.add_argument("--data-dir", default=str(DB_DIR / "airflow/data"), help="Scratch dir for CSVs")
     args = parser.parse_args()
@@ -269,8 +262,8 @@ def main() -> None:
     if not args.skip_imdb_plots:
         phase_imdb_plots(args.db_path, years, data_dir)
 
-    if not args.skip_dbt:
-        phase_dbt(args.db_path)
+    if not args.skip_transform:
+        phase_transform(args.db_path)
 
     if not args.skip_vss:
         phase_vss(args.db_path, args.vss_db)
