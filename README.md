@@ -127,3 +127,23 @@ Oracle Always Free VM for less cold-start impact with more ops overhead.
 ```bash
 ./api/smoke_test.sh http://localhost:8080
 ```
+
+## FAQ
+
+**Does this use LangChain or Pinecone?**
+No. Both were dropped. Filter parsing is a single JSON-structured LLM call (`api/filter_parser.py`). Vector search is DuckDB VSS with an HNSW index (`api/vector_store.py`).
+
+**Can I use a provider other than OpenAI?**
+Yes. Any OpenAI-compatible endpoint works — Gemini, local models (Ollama, LM Studio), etc. Set `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` and optionally the `EMBEDDING_*` equivalents.
+
+**Why is `/search` returning no results?**
+Most likely the DuckDB VSS table is empty. You need to run `api/load_embeddings.py` against a populated movie corpus first. See "Loading the vector store" above.
+
+**What does `EMBEDDING_DIM` do?**
+It must match the output dimension of your embedding model. Mismatch causes a schema error at load time. See the cheat sheet in "Environment variables".
+
+**Can I change the embedding model later?**
+Yes, but it requires re-running `load_embeddings.py` (dimension or space changes break the existing index). Use a different `VSS_TABLE` name while rebuilding to avoid downtime.
+
+**Is there a Lambda or serverless dependency?**
+No. The backend is a plain FastAPI service (`uvicorn`/`gunicorn`) that runs anywhere containers run.
