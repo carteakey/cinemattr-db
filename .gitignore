@@ -19,3 +19,4 @@ deployments
 .venv
 *.parquet
 .venv-smoke
+deploy/.env
