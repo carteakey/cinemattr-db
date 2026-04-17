@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py /app/app.py
+COPY app.py embeddings.py filter_parser.py vector_store.py load_embeddings.py /app/
 
 EXPOSE 8080
 

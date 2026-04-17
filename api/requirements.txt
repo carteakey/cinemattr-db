@@ -1,8 +1,7 @@
-langchain 
-pinecone-client 
-openai
-python-dotenv
-lark
-gunicorn
 fastapi
 uvicorn
+gunicorn
+openai
+duckdb
+python-dotenv
+pydantic

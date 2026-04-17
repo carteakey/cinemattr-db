@@ -1,7 +1,6 @@
-cinemattr: # this needs to match the profile in your dbt_project.yml file
+cinemattr:
   target: dev
   outputs:
     dev:
       type: duckdb
-      path: '/opt/airflow/db/db.duckdb'
-
+      path: "{{ env_var('DUCKDB_PATH', '/Users/kchauhan/repos/cinemattr-db/db/duckdb/movies.duckdb') }}"

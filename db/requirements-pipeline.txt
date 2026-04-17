@@ -1,0 +1,14 @@
+# Scraping
+aiohttp
+beautifulsoup4
+mwclient
+mwparserfromhell
+pandas
+requests
+
+# Storage + transforms
+duckdb
+
+# API / VSS loader (also in api/requirements.txt)
+openai
+python-dotenv
