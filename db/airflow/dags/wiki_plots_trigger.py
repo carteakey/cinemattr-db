@@ -1,11 +1,17 @@
+import os
+
 import pendulum
-from airflow.decorators import dag, task
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.decorators import dag
 from airflow.models.baseoperator import chain
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 """
 This DAG is used to trigger the WikiPlots DAG.
 """
+
+CURRENT_YEAR = pendulum.now("UTC").year
+START_YEAR = int(os.getenv("CINEMATTR_START_YEAR", "1950"))
+END_YEAR = int(os.getenv("CINEMATTR_END_YEAR", str(CURRENT_YEAR)))
 
 
 @dag(
@@ -13,13 +19,10 @@ This DAG is used to trigger the WikiPlots DAG.
     schedule_interval=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=["scraper",'cinemattr'],
+    tags=["scraper", "cinemattr"],
 )
 def trigger_dag():
-    # years = range(1950, 2024)
-    years = [
-        2017,2018
-    ]
+    years = range(START_YEAR, END_YEAR + 1)
     op_list = [
         TriggerDagRunOperator(
             task_id=f"wiki_plots_trigger_{year}",

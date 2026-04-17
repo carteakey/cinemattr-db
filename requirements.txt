@@ -6,3 +6,4 @@ lark
 gunicorn
 fastapi
 sentence-transformers
+uvicorn

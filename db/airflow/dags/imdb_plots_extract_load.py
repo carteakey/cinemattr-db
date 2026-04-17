@@ -1,13 +1,9 @@
+import pendulum
 from airflow.decorators import dag, task
 from airflow.models.param import Param
-import pendulum
 from duckdb_provider.hooks.duckdb_hook import DuckDBHook
-from airflow.models.baseoperator import chain
-import os
-from airflow.models import Variable
 
-SCRAPINGANT_API_KEY = Variable.get("SCRAPINGANT_API_KEY")
-os.environ["SCRAPINGANT_API_KEY"] = SCRAPINGANT_API_KEY
+CURRENT_YEAR = pendulum.now("UTC").year
 
 
 @dag(
@@ -15,8 +11,8 @@ os.environ["SCRAPINGANT_API_KEY"] = SCRAPINGANT_API_KEY
     schedule_interval=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=["scraper",'cinemattr'],
-    params={"year": Param(2022, type="integer", minimum=1900, maximum=2023)},
+    tags=["scraper", "cinemattr"],
+    params={"year": Param(CURRENT_YEAR, type="integer", minimum=1900, maximum=CURRENT_YEAR)},
     render_template_as_native_obj=True,
 )
 def taskflow():
@@ -78,7 +74,7 @@ def taskflow():
                 SELECT
                     imdb_title_id
                 FROM
-                    imdb_wiki)
+                    imdb_plots)
         """
         results = cursor.execute(query).fetchall()
         title_ids = [x[0] for x in results]
@@ -88,9 +84,13 @@ def taskflow():
 
     @task.virtualenv(
         system_site_packages=True,
-        requirements=["pandas", "beautifulsoup4"],
+        requirements=["pandas", "beautifulsoup4", "requests"],
     )
     def extract(title_ids):
+        import os
+
+        from airflow.models import Variable
+        os.environ["SCRAPINGANT_API_KEY"] = Variable.get("SCRAPINGANT_API_KEY")
         from scrapers.IMDb_summary_proxy import scrape
 
         data_file = scrape(title_ids)
@@ -123,16 +123,12 @@ def taskflow():
             SET summary=EXCLUDED.summary,
             plot=EXCLUDED.plot;
         """
-        try:
-            duckdb_hook = DuckDBHook(duckdb_conn_id="cinemattr-db")
-            conn = duckdb_hook.get_conn()
-            cursor = conn.cursor()
-            cursor.execute(query)
-            cursor.close()
-            conn.close()
-            return 0
-        except Exception as e:
-            return 1
+        duckdb_hook = DuckDBHook(duckdb_conn_id="cinemattr-db")
+        conn = duckdb_hook.get_conn()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        cursor.close()
+        conn.close()
 
     year = "{{ params.year }}"
 

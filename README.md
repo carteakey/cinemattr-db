@@ -5,11 +5,70 @@ Backend and database of [cinemattr.ca](https://github.com/carteakey/cinemattr.ca
 ## How it works
 
 - Self querying retriever using LangChain, on a pinecone database containing popular movies (>1000 imdb rating count) released since 1950 to date.
-- OpenAI LLM translates user input to a vector database query.
+- An OpenAI-compatible LLM translates user input to a vector database query.
 - Initial filtering is done through metadata columns (title, year, rating, actors etc.) using operators like > < = AND,OR.
 - Semantic search is done on the plot and summaries extracted for each movie.
 - Final 20 results (titles) are sent back as a response.
-- API hosted on an rate-limited AWS Lambda function.
+- API hosted as a standalone Python HTTP service (FastAPI).
+
+## Search API (no Lambda dependency)
+
+### API routes
+
+- `GET /health`
+- `POST /search` with JSON body: `{ "query": "..." }`
+- `GET /search?query=...` (compat path)
+
+Example:
+
+```bash
+curl -X POST "http://localhost:8080/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mind bending sci-fi with alternate realities"}'
+```
+
+### Provider and model environment variables
+
+```bash
+# LLM
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_API_KEY=...
+LLM_MODEL=gpt-4.1-mini
+
+# Embeddings
+EMBEDDING_PROVIDER=openai-compatible
+EMBEDDING_BASE_URL=
+EMBEDDING_API_KEY=
+EMBEDDING_MODEL=text-embedding-3-small
+HF_EMBEDDING_DEVICE=
+
+# Pinecone
+PINECONE_API_KEY=...
+PINECONE_ENV=...
+VECTOR_INDEX_NAME=cinemattr
+VECTOR_TOP_K=20
+
+# API hardening
+RATE_LIMIT_REQUESTS=30
+RATE_LIMIT_WINDOW_SECONDS=60
+ALLOWED_ORIGINS=*
+
+# Only trust X-Forwarded-For when your API sits behind a trusted proxy/load balancer.
+TRUST_PROXY_HEADERS=false
+TRUSTED_PROXY_IPS=
+```
+
+`EMBEDDING_PROVIDER=huggingface` enables local `sentence-transformers` embeddings. Hosted providers still require an API key; keyless mode is only intended for local endpoints such as `localhost`.
+
+### Pinecone index migration notes (embedding model upgrades)
+
+When changing embedding model dimensions, do not overwrite the active index in place.
+
+1. Create a new index name (for example `cinemattr-v2`) with the target dimension.
+2. Re-embed and load data into that new index.
+3. Switch `VECTOR_INDEX_NAME` to the new index.
+4. Verify search quality/latency via smoke checks.
+5. Keep the previous index for rollback until confidence is high, then delete it.
 
 ## How data is collected and loaded
 
@@ -18,36 +77,36 @@ Backend and database of [cinemattr.ca](https://github.com/carteakey/cinemattr.ca
 - Data is loaded to a duckdb instance. (`db/duckdb`)
 - DBT is used for data transformation and cleanup (Clean text, create final tables, merge data from both sources) (`db/dbt`)
 - Plot summaries are loaded into a pinecone vector database (see `api/load.ipynb`).
-- Vector Embeddings are either 
-   - HuggingFace `all-mpnet-base-v2`, Free - `api/hf_embeddings`
-   - OpenAI `text-embedding-ada-002`, Paid - $0.0001/1000 tokens - `api`
+- Vector embeddings can run in either mode:
+  - Hugging Face `sentence-transformers/all-mpnet-base-v2` via `EMBEDDING_PROVIDER=huggingface` and the `api/hugging_face` image
+  - OpenAI-compatible embeddings via `EMBEDDING_PROVIDER=openai-compatible`
 
-## Building and Testing the Lambda API
+## Building and running the API container
 
 Build
 
 ```bash
-docker build -t cinemattr-api . --no-cache  --platform=linux/arm64
+docker build -t cinemattr-api ./api --no-cache
 ```
 
+Hugging Face embedding image
+
 ```bash
-docker build -t cinemattr-api .  --platform=linux/arm64
+docker build -t cinemattr-api-hf ./api/hugging_face --no-cache
 ```
 
 Run
 
 ```bash
-docker run -p 9000:8080  --env-file .env.dev cinemattr-api
+docker run -p 8080:8080 --env-file .env.example cinemattr-api
 ```
 
 Test query
 
 ```bash
-
-curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{
-        "queryStringParameters":
-            { "query" : "owen wilson wow"}
-    }'
+curl -X POST "http://localhost:8080/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"owen wilson wow"}'
 ```
 
 Auth ECR
@@ -62,23 +121,7 @@ Create Docker Repository
 aws ecr create-repository --repository-name cinemattr-api --image-scanning-configuration scanOnPush=true --image-tag-mutability MUTABLE  --region us-east-1
 ```
 
-Tag latest build
-
-```bash
-docker tag cinemattr-api $LAMBDA_ECR_REPO/cinemattr-api:latest
-```
-
-Push
-
-```bash
-docker push $LAMBDA_ECR_REPO/cinemattr-api:latest
-```
-
-Test Lambda Function URL
-
-```
-curl "$LAMBDA_API_URL?query=query"
-```
+Tag/push steps stay the same if using ECR-based deploys.
 
 ## Airflow
 
@@ -113,4 +156,20 @@ Export final movies plot table
 python -m utils db.duckdb export_movies
 ```
 
+## Free-hosting options (scale-to-zero friendly)
 
+Free tiers change often; verify quotas before deploy:
+
+1. Cloud Run (container, scale-to-zero)
+2. Koyeb free web service (container, may sleep)
+3. Render/Railway credit-based free tiers (if available)
+
+For less cold-start impact with higher ops overhead, use Oracle Always Free VM.
+
+## Local smoke checks
+
+After running the API:
+
+```bash
+./api/smoke_test.sh
+```
