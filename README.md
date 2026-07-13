@@ -31,12 +31,18 @@ curl -X POST "http://localhost:8080/search" \
 ## Environment variables
 
 ```bash
-# LLM (filter parser)
+# Optional local-first LLM (filter parser)
+LOCAL_LLM_BASE_URL=http://kpc-cachy.llama-alnair.ts.net:8001/v1
+LOCAL_LLM_API_KEY=...
+LOCAL_LLM_MODEL=gemma-4-26b-qat-mtp
+LOCAL_LLM_TIMEOUT_SECONDS=45
+
+# Cloud fallback
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=...
 LLM_MODEL=gpt-4.1-mini
 
-# Embeddings (falls back to LLM_* if unset)
+# Embeddings remain separately configurable (falls back to LLM_* if unset)
 EMBEDDING_BASE_URL=
 EMBEDDING_API_KEY=
 EMBEDDING_MODEL=text-embedding-3-small

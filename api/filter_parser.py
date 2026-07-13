@@ -45,17 +45,45 @@ If no filter mentioned, set to null / empty array.
 Do not invent filters the user didn't state."""
 
 
-def _build_client() -> tuple[OpenAI, str]:
-    base_url = (os.getenv("LLM_BASE_URL") or "").strip()
-    api_key = (os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or "").strip()
-    model = os.getenv("LLM_MODEL", "gpt-4.1-mini").strip()
+@dataclass(frozen=True)
+class LLMProvider:
+    name: str
+    client: OpenAI
+    model: str
 
-    if not base_url:
-        raise RuntimeError("LLM_BASE_URL is required.")
-    if not api_key:
-        raise RuntimeError("LLM_API_KEY or OPENAI_API_KEY is required.")
 
-    return OpenAI(api_key=api_key, base_url=base_url), model
+def _build_providers() -> list[LLMProvider]:
+    providers: list[LLMProvider] = []
+    local_base_url = (os.getenv("LOCAL_LLM_BASE_URL") or "").strip()
+    local_model = (os.getenv("LOCAL_LLM_MODEL") or "").strip()
+    if local_base_url and local_model:
+        providers.append(
+            LLMProvider(
+                name="local",
+                client=OpenAI(
+                    api_key=(os.getenv("LOCAL_LLM_API_KEY") or "local").strip(),
+                    base_url=local_base_url,
+                    timeout=float(os.getenv("LOCAL_LLM_TIMEOUT_SECONDS", "45")),
+                    max_retries=0,
+                ),
+                model=local_model,
+            )
+        )
+
+    cloud_base_url = (os.getenv("LLM_BASE_URL") or "").strip()
+    cloud_api_key = (os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or "").strip()
+    if cloud_base_url and cloud_api_key:
+        providers.append(
+            LLMProvider(
+                name="cloud",
+                client=OpenAI(api_key=cloud_api_key, base_url=cloud_base_url),
+                model=os.getenv("LLM_MODEL", "gpt-4.1-mini").strip(),
+            )
+        )
+
+    if not providers:
+        raise RuntimeError("Configure LOCAL_LLM_* or LLM_* for query parsing.")
+    return providers
 
 
 def _extract_json(text: str) -> dict[str, Any]:
@@ -66,17 +94,32 @@ def _extract_json(text: str) -> dict[str, Any]:
 
 
 def parse_query(raw_query: str) -> ParsedQuery:
-    client, model = _build_client()
-    response = client.chat.completions.create(
-        model=model,
-        temperature=0,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": raw_query},
-        ],
-        response_format={"type": "json_object"},
-    )
-    payload = response.choices[0].message.content or ""
+    payload = ""
+    last_error: Exception | None = None
+    for provider in _build_providers():
+        try:
+            response = provider.client.chat.completions.create(
+                model=provider.model,
+                temperature=0,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": raw_query},
+                ],
+                response_format={"type": "json_object"},
+            )
+            payload = response.choices[0].message.content or ""
+            logger.info("Query parsed with %s provider (%s).", provider.name, provider.model)
+            break
+        except Exception as exc:  # provider failure should allow the next configured provider
+            last_error = exc
+            logger.warning(
+                "%s query parser unavailable (%s); trying fallback.",
+                provider.name,
+                type(exc).__name__,
+            )
+    else:
+        assert last_error is not None
+        raise last_error
 
     try:
         data = _extract_json(payload)
