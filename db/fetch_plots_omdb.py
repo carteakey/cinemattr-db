@@ -34,15 +34,24 @@ def fetch_plot(title_id: str, api_key: str) -> tuple[str | None, str | None]:
     """Returns (short_plot, full_plot) or (None, None) on failure."""
     try:
         r = requests.get(OMDB_URL, params={"i": title_id, "plot": "full", "apikey": api_key}, timeout=10)
-        r.raise_for_status()
+        if r.status_code == 401:
+            raise RuntimeError("OMDb rejected the API key; rotate or reactivate it before retrying.")
+        if not r.ok:
+            log.warning("OMDb returned HTTP %d for %s", r.status_code, title_id)
+            return None, None
         data = r.json()
         if data.get("Response") != "True":
             return None, None
         short = data.get("Plot") or None
         # OMDB returns same field for short/full with plot=full
         return short, short
-    except Exception as e:
-        log.warning("OMDB error for %s: %s", title_id, e)
+    except RuntimeError:
+        raise
+    except requests.RequestException as error:
+        log.warning("OMDb request failed for %s (%s)", title_id, type(error).__name__)
+        return None, None
+    except ValueError:
+        log.warning("OMDb returned invalid JSON for %s", title_id)
         return None, None
 
 
