@@ -16,6 +16,7 @@ Backend and database of [cinemattr.ca](https://github.com/carteakey/cinemattr.ca
 ### Routes
 
 - `GET /health`
+- `GET /ready` (returns 503 until the vector store contains rows)
 - `POST /search` with JSON body: `{ "query": "...", "top_k": 20 }`
 - `GET /search?query=...&top_k=20`
 
@@ -133,6 +134,14 @@ Oracle Always Free VM for less cold-start impact with more ops overhead.
 
 ```bash
 ./api/smoke_test.sh http://localhost:8080
+```
+
+## Verification
+
+```bash
+python -m compileall -q api db
+python -m unittest discover -s tests -v
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env.example config --quiet
 ```
 
 ## FAQ
