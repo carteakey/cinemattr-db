@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from collections import defaultdict, deque
 from functools import lru_cache
@@ -142,6 +143,21 @@ def _run_search(query: str, top_k: int) -> dict:
     }
 
 
+def _format_movie_details(row: tuple) -> dict:
+    title_id, title, year, genres, rating, plot = row
+    return {
+        "imdbID": title_id,
+        "Title": title,
+        "Year": str(year) if year is not None else "N/A",
+        "Genre": ", ".join(genres or []) or "N/A",
+        "Plot": plot or "Plot details are not available yet.",
+        "Poster": "N/A",
+        "imdbRating": str(rating) if rating is not None else "N/A",
+        "Response": "True",
+        "source": "cinemattr",
+    }
+
+
 app = FastAPI(title="cinemattr search api", version="3.0.0")
 
 app.add_middleware(
@@ -211,6 +227,29 @@ def ready() -> JSONResponse:
         "indexed_rows": row_count,
     }
     return JSONResponse(status_code=200 if vss_available and row_count > 0 else 503, content=payload)
+
+
+@app.get("/movies/{title_id}")
+def movie_details(title_id: str) -> dict:
+    if not re.fullmatch(r"tt\d{7,10}", title_id):
+        raise HTTPException(status_code=422, detail="Invalid IMDb title ID.")
+    store_config, _, _ = _shared_resources()
+    con = connect(store_config, read_only=True)
+    try:
+        row = con.execute(
+            f"""
+            SELECT title_id, title, year, genres, rating, plot
+            FROM {store_config.table}
+            WHERE title_id = ?
+            LIMIT 1;
+            """,
+            [title_id],
+        ).fetchone()
+    finally:
+        con.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Movie not found.")
+    return _format_movie_details(row)
 
 
 @app.post("/search")

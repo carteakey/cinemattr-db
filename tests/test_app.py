@@ -35,6 +35,15 @@ class AppHelpersTest(unittest.TestCase):
             app.TRUST_PROXY_HEADERS = original_headers
             app.TRUSTED_PROXY_IPS = original_ips
 
+    def test_format_movie_details_matches_frontend_contract(self):
+        details = app._format_movie_details(
+            ("tt1234567", "Example", 2026, ["Drama", "Sci-Fi"], 7.5, None)
+        )
+        self.assertEqual(details["imdbID"], "tt1234567")
+        self.assertEqual(details["Genre"], "Drama, Sci-Fi")
+        self.assertEqual(details["Poster"], "N/A")
+        self.assertEqual(details["source"], "cinemattr")
+
 
 if __name__ == "__main__":
     unittest.main()
