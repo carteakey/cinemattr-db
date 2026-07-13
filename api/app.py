@@ -78,19 +78,18 @@ def _enforce_rate_limit(client_ip: str) -> None:
 
 
 def _resolve_client_ip(request: Request) -> str:
-    if TRUST_PROXY_HEADERS:
+    client = request.client
+    peer_ip = client.host if client and client.host else "unknown"
+    proxy_is_trusted = TRUST_PROXY_HEADERS and (
+        not TRUSTED_PROXY_IPS or peer_ip in TRUSTED_PROXY_IPS
+    )
+    if proxy_is_trusted:
         forwarded = request.headers.get("x-forwarded-for", "")
         if forwarded:
             first = forwarded.split(",")[0].strip()
             if first:
                 return first
-    client = request.client
-    if client and client.host:
-        if TRUST_PROXY_HEADERS and TRUSTED_PROXY_IPS and client.host not in TRUSTED_PROXY_IPS:
-            # caller claims proxy but isn't trusted; use socket peer
-            return client.host
-        return client.host
-    return "unknown"
+    return peer_ip
 
 
 def _normalize_query(raw: str) -> str:
@@ -175,12 +174,17 @@ async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSON
     logger.exception("Unhandled error during %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
-        content={"error": {"message": str(exc), "status": 500}},
+        content={"error": {"message": "Internal server error.", "status": 500}},
     )
 
 
 @app.get("/health")
-def health() -> dict[str, str | int | bool]:
+def health() -> dict[str, str]:
+    return {"status": "ok", "service": "cinemattr-search-api", "version": "3.0.0"}
+
+
+@app.get("/ready")
+def ready() -> JSONResponse:
     store_config = None
     vss_available = False
     row_count = -1
@@ -195,8 +199,8 @@ def health() -> dict[str, str | int | bool]:
     except Exception as exc:  # noqa: BLE001 — surfaced in health payload
         logger.warning("Health check: DuckDB not ready: %s", exc)
 
-    return {
-        "status": "ok",
+    payload = {
+        "status": "ready" if vss_available and row_count > 0 else "not_ready",
         "service": "cinemattr-search-api",
         "version": "3.0.0",
         "model": os.getenv("LLM_MODEL", "gpt-4.1-mini"),
@@ -206,6 +210,7 @@ def health() -> dict[str, str | int | bool]:
         "vss_available": vss_available,
         "indexed_rows": row_count,
     }
+    return JSONResponse(status_code=200 if vss_available and row_count > 0 else 503, content=payload)
 
 
 @app.post("/search")
