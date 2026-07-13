@@ -1,6 +1,0 @@
-cinemattr:
-  target: dev
-  outputs:
-    dev:
-      type: duckdb
-      path: "{{ env_var('DUCKDB_PATH', '/Users/kchauhan/repos/cinemattr-db/db/duckdb/movies.duckdb') }}"

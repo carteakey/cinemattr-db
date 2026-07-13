@@ -1,6 +1,0 @@
-duckdb==0.7.1
-harlequin
-jupysql
-pandas
-dbt-core
-dbt-duckdb

@@ -66,7 +66,7 @@ Set `EMBEDDING_DIM` to match. Changing dim requires reloading the VSS table.
 
 ## Loading the vector store
 
-Assumes you already have a DuckDB database with scraped movies/plots (see "Data pipeline" below).
+Assumes you already have a DuckDB database populated by the data pipeline below.
 
 ```bash
 python api/load_embeddings.py \
@@ -99,17 +99,24 @@ uvicorn --app-dir api app:app --host 0.0.0.0 --port 8080
 
 ## Data pipeline
 
-- Movie details + plots scraped from IMDb and Wikipedia (`db/airflow/dags/scrapers`).
-- Airflow orchestrates per-year scraping jobs (`db/airflow`).
-- Raw data loaded into DuckDB (`db/duckdb`).
-- DBT transforms (`db/dbt`).
-- Embeddings loaded into the VSS table via `api/load_embeddings.py`.
+The pipeline deliberately uses plain Python and DuckDB:
 
-### Airflow year range
+1. `db/imdb_datasets_import.py` imports IMDb's official non-commercial datasets.
+2. `db/fetch_plots_omdb.py` resumably enriches movies with plots within your OMDb quota.
+3. `db/transform.py` builds the normalized corpus, retaining existing Wikipedia plots as a fallback.
+4. `api/load_embeddings.py` updates the DuckDB VSS table.
+
+Run all non-enrichment stages with:
 
 ```bash
-CINEMATTR_START_YEAR=1950
-CINEMATTR_END_YEAR=2026
+python db/run_pipeline.py --start-year 1950 --end-year 2026
+```
+
+OMDb enrichment is separate because API quotas vary:
+
+```bash
+OMDB_API_KEY=... python db/fetch_plots_omdb.py --limit 1000
+python db/run_pipeline.py --skip-imdb-movies
 ```
 
 ## Free-hosting options (scale-to-zero friendly)
