@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r api/requirements.txt
+      - run: python -m compileall -q api db
+      - run: python -m unittest discover -s tests -v
+      - run: docker compose -f deploy/docker-compose.yml --env-file deploy/.env.example config --quiet
