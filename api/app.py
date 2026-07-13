@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from embeddings import build_client, embed_one, load_embedding_config
+from embeddings import build_client, embed_query, load_embedding_config
 from filter_parser import parse_query
 from vector_store import connect, load_store_config, search
 
@@ -123,7 +123,7 @@ def _get_connection():
 def _run_search(query: str, top_k: int) -> dict:
     store_config, embedding_config, embedding_client = _shared_resources()
     parsed = parse_query(query)
-    vector = embed_one(embedding_client, embedding_config, parsed.semantic_query)
+    vector = embed_query(embedding_client, embedding_config, parsed.semantic_query)
     con = connect(store_config, read_only=True)
     try:
         titles = search(con, store_config, vector, parsed, top_k)

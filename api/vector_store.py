@@ -10,6 +10,18 @@ import duckdb
 from filter_parser import ParsedQuery
 
 
+GENRE_ALIASES = {
+    "science fiction": "sci-fi",
+    "sci fi": "sci-fi",
+    "scifi": "sci-fi",
+}
+
+
+def _normalize_genre(genre: str) -> str:
+    normalized = " ".join(genre.lower().replace("_", " ").split())
+    return GENRE_ALIASES.get(normalized, normalized)
+
+
 @dataclass(frozen=True)
 class StoreConfig:
     db_path: str
@@ -34,7 +46,12 @@ def connect(config: StoreConfig, read_only: bool = True) -> duckdb.DuckDBPyConne
     return con
 
 
-def ensure_schema(con: duckdb.DuckDBPyConnection, config: StoreConfig) -> None:
+def ensure_schema(
+    con: duckdb.DuckDBPyConnection,
+    config: StoreConfig,
+    *,
+    create_index: bool = True,
+) -> None:
     con.execute(
         f"""
         CREATE TABLE IF NOT EXISTS {config.table} (
@@ -48,7 +65,12 @@ def ensure_schema(con: duckdb.DuckDBPyConnection, config: StoreConfig) -> None:
         );
         """
     )
-    # HNSW index. VSS requires explicit index creation for large tables; skip if present.
+    if create_index:
+        ensure_index(con, config)
+
+
+def ensure_index(con: duckdb.DuckDBPyConnection, config: StoreConfig) -> None:
+    # Build after bulk loads: maintaining HNSW row-by-row is substantially slower.
     con.execute("SET hnsw_enable_experimental_persistence = true;")
     existing = con.execute(
         "SELECT index_name FROM duckdb_indexes() WHERE table_name = ?",
@@ -74,7 +96,7 @@ def _build_where(parsed: ParsedQuery) -> tuple[str, list]:
         clauses.append("rating >= ?")
         params.append(parsed.min_rating)
     if parsed.genres:
-        lowered = [g.lower() for g in parsed.genres]
+        lowered = [_normalize_genre(g) for g in parsed.genres]
         clauses.append("list_has_any(list_transform(genres, g -> lower(g)), ?)")
         params.append(lowered)
 

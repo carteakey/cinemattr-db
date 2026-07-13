@@ -47,6 +47,8 @@ EMBEDDING_BASE_URL=
 EMBEDDING_API_KEY=
 EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIM=1536          # must match the model's output dim
+EMBEDDING_QUERY_PREFIX=
+EMBEDDING_DOCUMENT_PREFIX=
 
 # Vector store
 DUCKDB_PATH=data/cinemattr.duckdb
@@ -68,8 +70,11 @@ TRUSTED_PROXY_IPS=
 | `text-embedding-3-small` | 1536 | fixed |
 | `text-embedding-3-large` | 3072 | 256..3072 |
 | `gemini-embedding-001` | 3072 | 768 / 1536 / 3072 |
+| `nomic-embed-text-v1.5` | 768 | 64 / 128 / 256 / 512 / 768 |
 
 Set `EMBEDDING_DIM` to match. Changing dim requires reloading the VSS table.
+For Nomic, set `EMBEDDING_QUERY_PREFIX=search_query: ` and
+`EMBEDDING_DOCUMENT_PREFIX=search_document: `; the trailing spaces matter.
 
 ## Loading the vector store
 
@@ -89,6 +94,11 @@ python api/load_embeddings.py \
 ```
 
 Idempotent — re-runs upsert by `title_id`.
+The loader uses Arrow batches and creates the HNSW index after ingestion; avoid
+exposing a new target table until the command finishes successfully.
+
+For metadata catalogs without plot text, add `--allow-empty-plot`. The loader
+will embed title, year, and genres, and will include plot text whenever present.
 
 ## Running the API
 

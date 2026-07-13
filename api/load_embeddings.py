@@ -22,12 +22,24 @@ import sys
 from typing import Iterable
 
 import duckdb
+import pyarrow as pa
 
-from embeddings import build_client, embed_texts, iter_batches, load_embedding_config
-from vector_store import connect, ensure_schema, load_store_config
+from embeddings import build_client, embed_documents, iter_batches, load_embedding_config
+from vector_store import connect, ensure_index, ensure_schema, load_store_config
 
 logger = logging.getLogger("cinemattr.loader")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+
+def _movie_embedding_text(row: dict) -> str:
+    parts = [str(row["title"]).strip()]
+    if row["year"] is not None:
+        parts.append(str(row["year"]))
+    if row["genres"]:
+        parts.append(", ".join(row["genres"]))
+    if row["plot"]:
+        parts.append(str(row["plot"]).strip())
+    return ". ".join(part for part in parts if part)
 
 
 def _iter_source(
@@ -39,9 +51,11 @@ def _iter_source(
     year_col: str,
     genre_col: str,
     rating_col: str,
+    allow_empty_plot: bool = False,
 ) -> Iterable[dict]:
     con = duckdb.connect(source_path, read_only=True)
     try:
+        plot_filter = "" if allow_empty_plot else f"WHERE {plot_col} IS NOT NULL AND length(trim({plot_col})) > 20"
         rows = con.execute(
             f"""
             SELECT
@@ -52,7 +66,7 @@ def _iter_source(
                 {rating_col} AS rating,
                 {plot_col}   AS plot
             FROM {table}
-            WHERE {plot_col} IS NOT NULL AND length(trim({plot_col})) > 20;
+            {plot_filter};
             """
         ).fetchall()
     finally:
@@ -86,6 +100,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--year-col", default="year")
     parser.add_argument("--genre-col", default="genres")
     parser.add_argument("--rating-col", default="rating")
+    parser.add_argument(
+        "--allow-empty-plot",
+        action="store_true",
+        help="Embed title/year/genres when plot text is unavailable.",
+    )
     parser.add_argument("--batch", type=int, default=64)
     args = parser.parse_args(argv)
 
@@ -100,33 +119,51 @@ def main(argv: list[str] | None = None) -> int:
 
     client = build_client(embedding_config)
     target = connect(store_config, read_only=False)
-    ensure_schema(target, store_config)
+    ensure_schema(target, store_config, create_index=False)
 
     rows = list(_iter_source(
         args.source, args.table, args.id_col, args.plot_col,
         args.title_col, args.year_col, args.genre_col, args.rating_col,
+        args.allow_empty_plot,
     ))
     logger.info("Loaded %d source rows from %s.%s", len(rows), args.source, args.table)
 
     total_written = 0
-    for batch in iter_batches(iter([r["plot"] for r in rows]), args.batch):
+    target.execute("BEGIN TRANSACTION;")
+    for batch in iter_batches(iter([_movie_embedding_text(r) for r in rows]), args.batch):
         offset = total_written
         slice_rows = rows[offset : offset + len(batch)]
-        texts = [r["plot"] for r in slice_rows]
-        vectors = embed_texts(client, embedding_config, texts)
+        texts = [_movie_embedding_text(r) for r in slice_rows]
+        vectors = embed_documents(client, embedding_config, texts)
 
-        for row, vector in zip(slice_rows, vectors):
-            target.execute(
-                f"""
-                INSERT OR REPLACE INTO {store_config.table}
-                    (title_id, title, year, genres, rating, plot, embedding)
-                VALUES (?, ?, ?, ?, ?, ?, ?::FLOAT[{store_config.dim}]);
-                """,
-                [row["title_id"], row["title"], row["year"], row["genres"], row["rating"], row["plot"], vector],
-            )
+        arrow_batch = pa.table(
+            {
+                "title_id": [row["title_id"] for row in slice_rows],
+                "title": [row["title"] for row in slice_rows],
+                "year": [row["year"] for row in slice_rows],
+                "genres": [row["genres"] for row in slice_rows],
+                "rating": [row["rating"] for row in slice_rows],
+                "plot": [row["plot"] for row in slice_rows],
+                "embedding": pa.array(vectors, type=pa.list_(pa.float32(), store_config.dim)),
+            }
+        )
+        target.register("_embedding_batch", arrow_batch)
+        target.execute(
+            f"""
+            INSERT OR REPLACE INTO {store_config.table}
+                (title_id, title, year, genres, rating, plot, embedding)
+            SELECT title_id, title, year, genres, rating, plot,
+                   embedding::FLOAT[{store_config.dim}]
+            FROM _embedding_batch;
+            """
+        )
+        target.unregister("_embedding_batch")
         total_written += len(slice_rows)
         logger.info("Embedded %d/%d", total_written, len(rows))
 
+    target.execute("COMMIT;")
+    logger.info("Building HNSW index after bulk ingestion.")
+    ensure_index(target, store_config)
     target.close()
     logger.info("Done. Wrote %d rows to %s (%s).", total_written, store_config.db_path, store_config.table)
     return 0

@@ -3,5 +3,6 @@ uvicorn
 gunicorn
 openai
 duckdb
+pyarrow
 python-dotenv
 pydantic

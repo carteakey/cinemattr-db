@@ -17,6 +17,8 @@ class EmbeddingConfig:
     api_key: str
     model: str
     dim: int | None
+    query_prefix: str
+    document_prefix: str
 
 
 def load_embedding_config() -> EmbeddingConfig:
@@ -31,24 +33,43 @@ def load_embedding_config() -> EmbeddingConfig:
 
     raw_dim = os.getenv("EMBEDDING_DIM", "").strip()
     dim = int(raw_dim) if raw_dim else None
+    query_prefix = os.getenv("EMBEDDING_QUERY_PREFIX", "")
+    document_prefix = os.getenv("EMBEDDING_DOCUMENT_PREFIX", "")
 
-    return EmbeddingConfig(base_url=base_url, api_key=api_key, model=model, dim=dim)
+    return EmbeddingConfig(
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        dim=dim,
+        query_prefix=query_prefix,
+        document_prefix=document_prefix,
+    )
 
 
 def build_client(config: EmbeddingConfig) -> OpenAI:
     return OpenAI(api_key=config.api_key, base_url=config.base_url)
 
 
-def embed_texts(client: OpenAI, config: EmbeddingConfig, texts: Sequence[str]) -> list[list[float]]:
-    kwargs: dict = {"model": config.model, "input": list(texts)}
+def embed_texts(
+    client: OpenAI,
+    config: EmbeddingConfig,
+    texts: Sequence[str],
+    *,
+    prefix: str = "",
+) -> list[list[float]]:
+    kwargs: dict = {"model": config.model, "input": [f"{prefix}{text}" for text in texts]}
     if config.dim is not None:
         kwargs["dimensions"] = config.dim
     response = client.embeddings.create(**kwargs)
     return [item.embedding for item in response.data]
 
 
-def embed_one(client: OpenAI, config: EmbeddingConfig, text: str) -> list[float]:
-    return embed_texts(client, config, [text])[0]
+def embed_query(client: OpenAI, config: EmbeddingConfig, text: str) -> list[float]:
+    return embed_texts(client, config, [text], prefix=config.query_prefix)[0]
+
+
+def embed_documents(client: OpenAI, config: EmbeddingConfig, texts: Sequence[str]) -> list[list[float]]:
+    return embed_texts(client, config, texts, prefix=config.document_prefix)
 
 
 def iter_batches(items: Iterable[str], batch_size: int) -> Iterable[list[str]]:
