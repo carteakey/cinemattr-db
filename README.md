@@ -123,6 +123,14 @@ The pipeline deliberately uses plain Python and DuckDB:
 3. `db/transform.py` builds the normalized corpus, retaining existing Wikipedia plots as a fallback.
 4. `api/load_embeddings.py` updates the DuckDB VSS table.
 
+### Corpus provenance and coverage
+
+The catalog metadata comes from IMDb's official non-commercial datasets. Plot text
+is added from OMDb when an enrichment run has coverage, with existing Wikipedia
+plot rows retained as a fallback. Rows without plot text are excluded by the
+default embedding loader, so search coverage depends on the local enrichment
+state and is not complete by default.
+
 Run all non-enrichment stages with:
 
 ```bash
